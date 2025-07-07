@@ -8,12 +8,12 @@ import { Preloader } from './scenes/Preloader.ts';
 // https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 const config = {
     type: Phaser.AUTO,
-    width: window.innerWidth,
+    width: window.navigator.userAgent.includes('Mobile') ? window.innerWidth : 480, 
     height: window.innerHeight,
     Scale: {
         mode: Phaser.Scale.RESIZE, // Tự động resize
         parent: 'game-container',
-        width: window.innerWidth,
+        width: window.navigator.userAgent.includes('Mobile') ? window.innerWidth : 480,
         height: window.innerHeight,
         autoCenter: Phaser.Scale.CENTER_BOTH
 
@@ -29,9 +29,7 @@ const config = {
 };
 
 const StartGame = (parent) => {
-
     return new Phaser.Game({ ...config, parent });
-
 }
 
 export default StartGame;
