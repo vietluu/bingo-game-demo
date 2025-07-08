@@ -1,8 +1,7 @@
 import { EventBus } from "../EventBus";
-import { Scene } from "phaser";
+import { Scene, Tweens } from "phaser";
 
 export class Game extends Scene {
-    // Properties
     bingoCard: Array<{
         number: number | "FREE";
         graphics: Phaser.GameObjects.Graphics;
@@ -21,18 +20,37 @@ export class Game extends Scene {
     }> = [];
 
     drawnNumbers: Set<number> = new Set();
-    drawButton: Phaser.GameObjects.Text;
-    replayButton: Phaser.GameObjects.Text;
-    bingoText: Phaser.GameObjects.Text;
-    confetti: Phaser.GameObjects.Image;
-    nearBingoText: Phaser.GameObjects.Text;
+    drawButton!: Phaser.GameObjects.Text;
+    replayButton!: Phaser.GameObjects.Text;
+    bingoText!: Phaser.GameObjects.Text;
+    confetti!: Phaser.GameObjects.Image;
+    nearBingoText!: Phaser.GameObjects.Text;
     freeIndex = 12;
+    interval: number | undefined;
+    bingoSound: Phaser.Sound.BaseSound | undefined;
+    gameSound: Phaser.Sound.BaseSound | undefined;
+    activeSound: Phaser.Sound.BaseSound | undefined;
 
     constructor() {
         super("Game");
+       
     }
-
-    // Utility functions
+    preload() {
+        this.bingoSound = this.sound.add("bingoSound", {
+            loop: false,
+            volume: 1,
+        });
+        this.gameSound = this.sound.add("gamePlay", {
+            loop: true,
+            volume: 0.5,
+        });
+        this.activeSound = this.sound.add("activeSound", {
+            loop: false,
+            volume: 1,
+        });
+        this.sound.pauseAll();
+        this.gameSound.play();
+    }
     generateUniqueNumbers(count: number, min: number, max: number): number[] {
         const numbers: number[] = [];
         const used = new Set<number>();
@@ -46,7 +64,10 @@ export class Game extends Scene {
         return numbers;
     }
 
-    // Drawing functions
+    changeScene() {
+        this.scene.start("Preloader");
+    }
+
     drawCellDefault(cell: any) {
         const cellSize = +this.sys.game.config.width / 6;
         cell.graphics.clear();
@@ -115,7 +136,6 @@ export class Game extends Scene {
         );
     }
 
-    // Game logic functions
     markNumber(number: number, scene: Phaser.Scene) {
         if (this.numberButtons[number]) {
             this.numberButtons[number].circle.setFillStyle(0xffd700);
@@ -128,7 +148,7 @@ export class Game extends Scene {
                 cell.marked = true;
                 cell.text.setColor("#ffffff");
                 cell.text.setStroke("#000000", 2);
-
+                this.activeSound?.play();
                 scene.tweens.add({
                     targets: [cell.graphics],
                     rotation: { from: 0, to: -0.005, duration: 80 },
@@ -136,7 +156,6 @@ export class Game extends Scene {
                     yoyo: true,
                     repeat: 3,
                 });
-
                 scene.tweens.add({
                     targets: [cell.text],
                     alpha: { from: 1, to: 0.5, duration: 200 },
@@ -312,18 +331,20 @@ export class Game extends Scene {
 
     triggerBingo(scene: Phaser.Scene) {
         this.bingoText.setVisible(true);
+        this.sound.pauseAll();
+        this.bingoSound?.play();
         scene.tweens.add({
             targets: this.bingoText,
             alpha: { from: 0, to: 1 },
             scale: { from: 0.5, to: 1 },
-            duration: 1000,
+            duration: 3000,
             ease: "Bounce.easeOut",
-            destroy: 2000,
         });
         setTimeout(() => {
             this.bingoText.setVisible(false);
-        }, 2000);
-
+        }, 5000);
+        clearInterval(this.interval);
+        this.interval = undefined;
         this.drawButton.disableInteractive();
         this.nearBingoText.setVisible(false);
         this.replayButton.setVisible(true);
@@ -331,7 +352,6 @@ export class Game extends Scene {
         this.updateNearBingo.call(this);
     }
 
-    // Scene lifecycle functions
     create() {
         const {
             width,
@@ -340,10 +360,27 @@ export class Game extends Scene {
             width: number | string;
             height: number | string;
         } = this.sys.game.config;
-        // Căn giữa background
         this.add.image(+width / 2, +height / 2, "background");
+        const audio = this.add.image(+width - 30, 30, "audio");
+        const mute = this.add.image(+width - 30, 30, "mute");
+        mute.setVisible(false);
+        mute.setInteractive();
+        audio.setInteractive();
+        audio.on("pointerdown", () => {
+            this.sound.mute = true;
+            mute.setVisible(true);
+            audio.setVisible(false);
+        })
+        mute.on("pointerdown", () => {
+            this.sound.mute = false;
+            audio.setVisible(true);
+            mute.setVisible(false);
+        });
+        this.drawnNumbers.clear();
+        this.bingoCard = [];
+        this.numberButtons = [];
         createGame.call(this);
-        function createGame() {
+        function createGame(this: Game) {
             const scene = this;
             const centerX = this.cameras.main.centerX;
             const centerY = this.cameras.main.centerY;
@@ -486,7 +523,7 @@ export class Game extends Scene {
                     .rectangle(x, y, cellSize, cellSize, 0xffffff, 0)
                     .setInteractive();
 
-                let star = null;
+                let star: Phaser.GameObjects.Image | undefined = undefined;
                 if (index === this.freeIndex) {
                     star = scene.add
                         .image(x, y, "star")
@@ -496,89 +533,9 @@ export class Game extends Scene {
                     cardGroup.add(star);
                 }
 
-                // interactiveRect.on("pointerover", () => {
-                //     if (!this.bingoCard[index].marked && cell !== "FREE") {
-                //         scene.tweens.add({
-                //             targets: [graphics, text],
-                //             scaleX: 1.05,
-                //             scaleY: 1.05,
-                //             duration: 150,
-                //             ease: "Power2.easeOut",
-                //         });
-                //         graphics.clear();
-                //         graphics.fillStyle(0x000000, 0.15);
-                //         graphics.fillRoundedRect(
-                //             x - cellSize / 2 + 3,
-                //             y - cellSize / 2 + 3,
-                //             cellSize,
-                //             cellSize,
-                //             8
-                //         );
-                //         graphics.fillStyle(0xf0f0f0, 1);
-                //         graphics.fillRoundedRect(
-                //             x - cellSize / 2,
-                //             y - cellSize / 2,
-                //             cellSize,
-                //             cellSize,
-                //             8
-                //         );
-                //         graphics.lineStyle(2, 0x4caf50, 1);
-                //         graphics.strokeRoundedRect(
-                //             x - cellSize / 2,
-                //             y - cellSize / 2,
-                //             cellSize,
-                //             cellSize,
-                //             8
-                //         );
-                //     }
-                // });
-
-                // interactiveRect.on("pointerout", () => {
-                //     if (!this.bingoCard[index].marked && cell !== "FREE") {
-                //         scene.tweens.add({
-                //             targets: [graphics, text],
-                //             scaleX: 1,
-                //             scaleY: 1,
-                //             duration: 150,
-                //             ease: "Power2.easeOut",
-                //         });
-                //         graphics.clear();
-                //         graphics.fillStyle(0x000000, 0.15);
-                //         graphics.fillRoundedRect(
-                //             x - cellSize / 2 + 3,
-                //             y - cellSize / 2 + 3,
-                //             cellSize,
-                //             cellSize,
-                //             8
-                //         );
-                //         graphics.fillStyle(0xffffff, 1);
-                //         graphics.fillRoundedRect(
-                //             x - cellSize / 2,
-                //             y - cellSize / 2,
-                //             cellSize,
-                //             cellSize,
-                //             8
-                //         );
-                //         graphics.lineStyle(2, 0xcccccc, 1);
-                //         graphics.strokeRoundedRect(
-                //             x - cellSize / 2,
-                //             y - cellSize / 2,
-                //             cellSize,
-                //             cellSize,
-                //             8
-                //         );
-                //     }
-                // });
-
-                // interactiveRect.on("pointerdown", () => {
-                //     if (!this.bingoCard[index].marked && cell !== "FREE") {
-                //         this.markNumber(this.bingoCard[index].number, scene);
-                //     }
-                // });
-
                 cardGroup.add(graphics);
                 cardGroup.add(text);
-                //cardGroup.add(interactiveRect);
+                cardGroup.add(interactiveRect);
 
                 return {
                     number:
@@ -596,7 +553,7 @@ export class Game extends Scene {
             });
 
             this.nearBingoText = scene.add
-                .text(80, 40, "", {
+                .text(85, 40, "", {
                     font: "24px Arial",
                     color: "#FFD700",
                     stroke: "#000",
@@ -624,56 +581,22 @@ export class Game extends Scene {
                 .setInteractive()
                 .setVisible(false);
             this.drawButton.on("pointerdown", () => {
-                this.drawRandomNumber(scene);
+                this.interval = setInterval(() => {
+                    this.drawRandomNumber(scene);
+                }, 3000);
+                this.drawButton.setVisible(false);
             });
 
             this.replayButton.on("pointerdown", () => {
-                this.drawnNumbers.clear();
-                this.drawButton.setVisible(true);
-                this.bingoText.setVisible(true);
-                this.nearBingoText.setVisible(true);
-                this.replayButton.setVisible(false);
-
-                Object.values(this.numberButtons).forEach((button: any) => {
-                    if (button && button.circle) {
-                        button.circle.setFillStyle(0xffffff);
-                        button.drawn = false;
-                    }
-                });
-
-                this.bingoCard.forEach((cell) => {
-                    cell.marked = false;
-                    this.drawCellDefault(cell);
-                    cell.text.setScale(1);
-                    cell.text.setColor("#000000");
-                    cell.text.setStroke("", 0);
-
-                    if (cell.number !== "FREE") {
-                        cell.text.setText(cell.number.toString());
-                        cell.text.setVisible(true);
-                    } else {
-                        cell.text.setText("FREE");
-                        cell.text.setVisible(false);
-                        if (cell.star) {
-                            cell.star.setVisible(true);
-                        }
-                    }
-                });
-
-                this.nearBingoText.setText("");
-                this.bingoText.setVisible(false);
-                this.confetti.setVisible(false);
-                this.confetti.setAlpha(0);
-                this.drawButton.setInteractive();
-                this.replayButton.setInteractive();
+                this.scene.restart();
             });
 
             this.bingoText = scene.add
-                .text(centerX, centerY, "BINGO!", {
-                    font: "64px Arial",
+                .text(centerX, centerY - 50, "BINGO!", {
+                    font: "64px Arial Black",
                     color: "#FFD700",
-                    stroke: "#000",
-                    strokeThickness: 6,
+                    stroke: "#fffda0",
+                    strokeThickness: 1,
                 })
                 .setOrigin(0.5);
             this.bingoText.setVisible(false);
@@ -684,5 +607,6 @@ export class Game extends Scene {
             this.confetti.setVisible(false);
             this.confetti.setAlpha(0);
         }
+        EventBus.emit("current-scene-ready", this);
     }
 }

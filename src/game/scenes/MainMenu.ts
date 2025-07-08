@@ -3,24 +3,29 @@ import { Scene } from 'phaser';
 
 export class MainMenu extends Scene
 {
-    logoTween;
-    logo;
+    logoTween: Phaser.Tweens.Tween | null = null;
+    logo: Phaser.GameObjects.Sprite | null = null;
+    startGameSound: Phaser.Sound.BaseSound | undefined;;
     constructor ()
     {
         super('MainMenu');
+        
     }
-
+    preload() {
+        this.sound.pauseOnBlur = false;
+        this.startGameSound = this.sound.add('startGameSound', {
+            loop: true,
+            volume: 1,
+        });
+    }
     create ()
     {   
-         const { width, height } = this.sys.game.config;         
-        // Căn giữa background
+        const { width, height } = this.sys.game.config;         
         this.add.image(+width/2, +height/2, 'background');
 
-        // Căn giữa logo
         this.logo = this.add.sprite(+width/2, +height/2 - 84, 'logo');
         this.logo.setDisplaySize(228, 75);
 
-        // Căn giữa text title
        let text =  this.add.text(+width/2, +height/2 , 'Start game', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
             stroke: '#000000', strokeThickness: 8,
@@ -42,6 +47,8 @@ export class MainMenu extends Scene
         text.on('pointerdown', () => {
             this.scene.start('Game');
         });
+       
+        this.startGameSound?.play();
         EventBus.emit('current-scene-ready', this);
     }
 
@@ -56,7 +63,7 @@ export class MainMenu extends Scene
         this.scene.start('Game');
     }
 
-    moveLogo (reactCallback)
+    moveLogo (reactCallback: (coords: { x: number; y: number }) => void)
     {
         if (this.logoTween)
         {
@@ -81,10 +88,12 @@ export class MainMenu extends Scene
                 onUpdate: () => {
                     if (reactCallback)
                     {
-                        reactCallback({
-                            x: Math.floor(this.logo.x),
-                            y: Math.floor(this.logo.y)
-                        });
+                        if (this.logo) {
+                            reactCallback({
+                                x: Math.floor(this.logo.x),
+                                y: Math.floor(this.logo.y)
+                            });
+                        }
                     }
                 }
             });

@@ -21,19 +21,18 @@ export class Preloader extends Scene
         let targetProgress = 0;
         const animationSpeed = 0.02; 
 
-        this.load.on('progress', (progress) => {
+        this.load.on('progress', (progress: number) => {
             console.log(`Progress: ${progress * 100}%`);
             targetProgress = progress;
         });
         this.progressTimer = this.time.addEvent({
-            delay: 16, // 60 FPS
+            delay: 16, 
             callback: () => {
                 if (currentProgress < targetProgress) {
                     currentProgress += animationSpeed;
                     if (currentProgress > targetProgress) {
                         currentProgress = targetProgress;
                     }
-                    //  Update the progress bar (our bar is 464px wide, so 100% = 464px)
                     bar.width = 4 + (220 * currentProgress);
                 }
             },
@@ -52,16 +51,11 @@ export class Preloader extends Scene
 
     create ()
     {
-        //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
-        //  For example, you can define global animations here, so we can use them in other scenes.
 
-        //  Wait for the progress bar animation to complete before moving to MainMenu
         this.time.delayedCall(1000, () => {
-            //  Clean up the progress timer
             if (this.progressTimer) {
                 this.progressTimer.destroy();
             }
-            //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
             this.scene.start('MainMenu');
         });
     }
