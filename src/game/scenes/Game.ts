@@ -147,7 +147,6 @@ export class Game extends Scene {
                 this.drawCellMarked(cell);
                 cell.marked = true;
                 cell.text.setColor("#ffffff");
-                cell.text.setStroke("#000000", 2);
                 this.activeSound?.play();
                 scene.tweens.add({
                     targets: [cell.graphics],
@@ -359,8 +358,10 @@ export class Game extends Scene {
         }: {
             width: number | string;
             height: number | string;
-        } = this.sys.game.config;
-        this.add.image(+width / 2, +height / 2, "background");
+            } = this.sys.game.config;
+        const centerX = this.cameras.main.centerX;
+        const centerY = this.cameras.main.centerY;
+        this.add.image(0,centerY, "background");
         const audio = this.add.image(+width - 30, 30, "audio");
         const mute = this.add.image(+width - 30, 30, "mute");
         mute.setVisible(false);
@@ -382,20 +383,21 @@ export class Game extends Scene {
         createGame.call(this);
         function createGame(this: Game) {
             const scene = this;
-            const centerX = this.cameras.main.centerX;
-            const centerY = this.cameras.main.centerY;
+          
             const uniqueNumbers = this.generateUniqueNumbers(25, 1, 75);
 
             const text = this.add.text(
-                +width / 2 - 140,
-                centerY - 350,
+                0,
+                centerY - 270,
                 "Bingo Game",
                 {
                     font: "42px Arial Black",
                     color: "#ffd700",
                     stroke: "#fff",
                     align: "center",
+                    fixedWidth: +width,
                     strokeThickness: 1,
+
                 }
             );
 
@@ -413,7 +415,7 @@ export class Game extends Scene {
 
             const cardGroup = scene.add.group();
             const cardStartX = +width / 6 - 13;
-            const cardStartY = +height / 2 - 180;
+            const cardStartY = centerY - 120;
             const cellSize = +width / 6;
             const padding = 6;
 
@@ -557,7 +559,7 @@ export class Game extends Scene {
                     font: "24px Arial",
                     color: "#FFD700",
                     stroke: "#000",
-                    strokeThickness: 4,
+                    strokeThickness: 0,
                 })
                 .setOrigin(0.5);
 
