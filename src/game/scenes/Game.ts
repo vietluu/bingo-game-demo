@@ -30,11 +30,12 @@ export class Game extends Scene {
     bingoSound: Phaser.Sound.BaseSound | undefined;
     gameSound: Phaser.Sound.BaseSound | undefined;
     activeSound: Phaser.Sound.BaseSound | undefined;
-
+    numbers: number[] = [];
+    needReload: boolean = false;
     constructor() {
         super("Game");
-       
     }
+    
     preload() {
         this.bingoSound = this.sound.add("bingoSound", {
             loop: false,
@@ -148,7 +149,7 @@ export class Game extends Scene {
                 cell.marked = true;
                 cell.text.setColor("#ffffff");
                 this.activeSound?.play();
-                scene.tweens.add({
+                this.tweens.add({
                     targets: [cell.graphics],
                     rotation: { from: 0, to: -0.005, duration: 80 },
                     ease: "Power2.easeInOut",
@@ -220,7 +221,7 @@ export class Game extends Scene {
         }
     }
 
-    drawRandomNumber(scene: Phaser.Scene) {
+    drawRandomNumber(scene: Phaser.Scene, number: number) {
         const availableNumbers: number[] = [];
         for (let i = 1; i <= 75; i++) {
             if (!this.drawnNumbers.has(i)) availableNumbers.push(i);
@@ -231,8 +232,7 @@ export class Game extends Scene {
             return;
         }
 
-        const randomIndex = Phaser.Math.Between(0, availableNumbers.length - 1);
-        const drawnNumber = availableNumbers[randomIndex];
+        const drawnNumber = number;
         this.drawnNumbers.add(drawnNumber);
         this.markNumber(drawnNumber, scene);
     }
@@ -242,7 +242,7 @@ export class Game extends Scene {
         for (let i = 0; i < 5; i++) {
             grid[i] = [];
             for (let j = 0; j < 5; j++) {
-                grid[i][j] = this.bingoCard[i * 5 + j].marked;
+                grid[i][j] = this.bingoCard[i * 5 + j]?.marked;
             }
         }
         grid[2][2] = true;
@@ -277,7 +277,7 @@ export class Game extends Scene {
         for (let i = 0; i < 5; i++) {
             grid[i] = [];
             for (let j = 0; j < 5; j++) {
-                grid[i][j] = this.bingoCard[i * 5 + j].marked;
+                grid[i][j] = this.bingoCard[i * 5 + j]?.marked;
             }
         }
 
@@ -340,17 +340,243 @@ export class Game extends Scene {
             ease: "Bounce.easeOut",
         });
         setTimeout(() => {
-            this.bingoText.setVisible(false);
+            this.replayButton.setVisible(true);
         }, 5000);
         clearInterval(this.interval);
         this.interval = undefined;
         this.drawButton.disableInteractive();
         this.nearBingoText.setVisible(false);
-        this.replayButton.setVisible(true);
         this.drawButton.setVisible(false);
         this.updateNearBingo.call(this);
+        EventBus.emit("bingo");
     }
+    createGame() {
+        const centerX = this.cameras.main.centerX;
+        const centerY = this.cameras.main.centerY;
+        const {
+            width,
+            height,
+        }: {
+            width: number | string;
+            height: number | string;
+        } = this.sys.game.config;
+        const uniqueNumbers = this.numbers;
 
+        const text = this.add.text(0, centerY - 270, "Bingo Game", {
+            font: "42px Arial Black",
+            color: "#ffd700",
+            stroke: "#fff",
+            align: "center",
+            fixedWidth: +width,
+            strokeThickness: 1,
+        });
+
+        const gradient = text.context.createLinearGradient(
+            0,
+            0,
+            0,
+            text.height
+        );
+        gradient.addColorStop(0, "#FFD700");
+        gradient.addColorStop(0.3, "#FFA500");
+        gradient.addColorStop(0.7, "#B8860B");
+        gradient.addColorStop(1, "#DAA520");
+        text.setFill(gradient);
+
+        const cardGroup = this.add.group();
+        const cardStartX = +width / 6 - 13;
+        const cardStartY = centerY - 120;
+        const cellSize = +width / 6;
+        const padding = 6;
+
+        const bingoColors = [0xff6b6b, 0xffd93d, 0x6bcf7f, 0x4ecdc4, 0xa8e6cf];
+        const bingoLetters = ["B", "I", "N", "G", "O"];
+        const headerY = cardStartY - 60;
+
+        bingoLetters.forEach((letter, index) => {
+            const graphics = this.add.graphics();
+            const x = cardStartX + index * (cellSize + padding);
+
+            graphics.fillStyle(0x000000, 0.2);
+            graphics.fillRoundedRect(
+                x - cellSize / 2 + 3,
+                headerY - 20 + 3,
+                cellSize,
+                40,
+                {
+                    tl: 16,
+                    tr: 16,
+                    bl: 0,
+                    br: 0,
+                }
+            );
+
+            graphics.fillStyle(bingoColors[index], 1);
+            graphics.fillRoundedRect(
+                x - cellSize / 2,
+                headerY - 20,
+                cellSize,
+                40,
+                {
+                    tl: 16,
+                    tr: 16,
+                    bl: 0,
+                    br: 0,
+                }
+            );
+
+            const headerText = this.add
+                .text(x, headerY, letter, {
+                    font: "24px Arial Black",
+                    color: "#fff",
+                    stroke: "#000",
+                    strokeThickness: 2,
+                })
+                .setOrigin(0.5);
+
+            cardGroup.add(graphics);
+            cardGroup.add(headerText);
+        });
+
+        this.bingoCard = Array.from({ length: 25 }, (_, index) => {
+            let cell =
+                index === this.freeIndex
+                    ? "FREE"
+                    : uniqueNumbers[index]?.toString();
+
+            const row = Math.floor(index / 5);
+            const col = index % 5;
+            const x = cardStartX + col * (cellSize + padding);
+            const y = cardStartY + row * (cellSize + padding);
+
+            const graphics = this.add.graphics();
+
+            graphics.fillStyle(0x000000, 0.15);
+            graphics.fillRoundedRect(
+                x - cellSize / 2 + 3,
+                y - cellSize / 2 + 3,
+                cellSize,
+                cellSize,
+                16
+            );
+
+            if (index === this.freeIndex) {
+                graphics.fillStyle(0xff6b6b, 1);
+            } else {
+                graphics.fillStyle(0xffffff, 1);
+            }
+            graphics.fillRoundedRect(
+                x - cellSize / 2,
+                y - cellSize / 2,
+                cellSize,
+                cellSize,
+                8
+            );
+
+            graphics.lineStyle(2, 0xcccccc, 1);
+            graphics.strokeRoundedRect(
+                x - cellSize / 2,
+                y - cellSize / 2,
+                cellSize,
+                cellSize,
+                8
+            );
+
+            const text = this.add
+                .text(x, y, cell, {
+                    font: "20px Arial Bold",
+                    color: "#333333",
+                })
+                .setOrigin(0.5);
+
+            const interactiveRect = this.add
+                .rectangle(x, y, cellSize, cellSize, 0xffffff, 0)
+                .setInteractive();
+
+            let star: Phaser.GameObjects.Image | undefined = undefined;
+            if (index === this.freeIndex) {
+                star = this.add
+                    .image(x, y, "star")
+                    .setScale(0.4)
+                    .setTint(0xffffff);
+                text.setVisible(false);
+                cardGroup.add(star);
+            }
+
+            cardGroup.add(graphics);
+            cardGroup.add(text);
+            cardGroup.add(interactiveRect);
+
+            return {
+                number:
+                    index === this.freeIndex ? "FREE" : uniqueNumbers[index],
+                graphics: graphics,
+                text: text,
+                interactiveRect: interactiveRect,
+                star: star,
+                marked: index === this.freeIndex,
+                x: x,
+                y: y,
+            };
+        });
+
+        this.nearBingoText = this.add
+            .text(85, 40, "", {
+                font: "24px Arial",
+                color: "#FFD700",
+                stroke: "#000",
+                strokeThickness: 0,
+            })
+            .setOrigin(0.5);
+
+        this.drawButton = this.add
+            .text(centerX, centerY + 250, "Draw Number", {
+                font: "32px Arial",
+                color: "#fff",
+                backgroundColor: "#007BFF",
+                padding: { x: 20, y: 10 },
+            })
+            .setOrigin(0.5)
+            .setInteractive()
+            .setVisible(false);
+        this.replayButton = this.add
+            .text(centerX, centerY + 150, "Replay", {
+                font: "32px Arial",
+                color: "#fff",
+                backgroundColor: "#28a745",
+                padding: { x: 20, y: 10 },
+            })
+            .setOrigin(0.5)
+            .setInteractive()
+            .setVisible(false);
+
+        this.replayButton.on("pointerdown", () => {
+            EventBus.emit("QuitGame");
+            this.scene.start("MainMenu");
+        });
+
+        this.bingoText = this.add
+            .text(centerX, centerY - 50, "BINGO!", {
+                font: "64px Arial Black",
+                color: "#FFD700",
+                stroke: "#fffda0",
+                strokeThickness: 1,
+            })
+            .setOrigin(0.5);
+        this.bingoText.setVisible(false);
+
+        this.confetti = this.add
+            .image(centerX, centerY, "confetti")
+            .setScale(0.5);
+        this.confetti.setVisible(false);
+        this.confetti.setAlpha(0);
+    }
+    update(time: number, delta: number): void {
+        if (this.needReload) {
+            this.createGame();
+            this.needReload = false;
+        }
+    }
     create() {
         const {
             width,
@@ -358,257 +584,46 @@ export class Game extends Scene {
         }: {
             width: number | string;
             height: number | string;
-            } = this.sys.game.config;
+        } = this.sys.game.config;
         const centerX = this.cameras.main.centerX;
         const centerY = this.cameras.main.centerY;
-        this.add.image(0,centerY, "background");
+        this.add.image(0, centerY, "background");
         const audio = this.add.image(+width - 30, 30, "audio");
         const mute = this.add.image(+width - 30, 30, "mute");
         mute.setVisible(false);
         mute.setInteractive();
         audio.setInteractive();
+        this.sound.mute = false;
         audio.on("pointerdown", () => {
             this.sound.mute = true;
             mute.setVisible(true);
             audio.setVisible(false);
-        })
+        });
         mute.on("pointerdown", () => {
             this.sound.mute = false;
             audio.setVisible(true);
             mute.setVisible(false);
         });
+
         this.drawnNumbers.clear();
         this.bingoCard = [];
         this.numberButtons = [];
-        createGame.call(this);
-        function createGame(this: Game) {
-            const scene = this;
-          
-            const uniqueNumbers = this.generateUniqueNumbers(25, 1, 75);
-
-            const text = this.add.text(
-                0,
-                centerY - 270,
-                "Bingo Game",
-                {
-                    font: "42px Arial Black",
-                    color: "#ffd700",
-                    stroke: "#fff",
-                    align: "center",
-                    fixedWidth: +width,
-                    strokeThickness: 1,
-
-                }
-            );
-
-            const gradient = text.context.createLinearGradient(
-                0,
-                0,
-                0,
-                text.height
-            );
-            gradient.addColorStop(0, "#FFD700");
-            gradient.addColorStop(0.3, "#FFA500");
-            gradient.addColorStop(0.7, "#B8860B");
-            gradient.addColorStop(1, "#DAA520");
-            text.setFill(gradient);
-
-            const cardGroup = scene.add.group();
-            const cardStartX = +width / 6 - 13;
-            const cardStartY = centerY - 120;
-            const cellSize = +width / 6;
-            const padding = 6;
-
-            const bingoColors = [
-                0xff6b6b, 0xffd93d, 0x6bcf7f, 0x4ecdc4, 0xa8e6cf,
-            ];
-            const bingoLetters = ["B", "I", "N", "G", "O"];
-            const headerY = cardStartY - 60;
-
-            bingoLetters.forEach((letter, index) => {
-                const graphics = scene.add.graphics();
-                const x = cardStartX + index * (cellSize + padding);
-
-                graphics.fillStyle(0x000000, 0.2);
-                graphics.fillRoundedRect(
-                    x - cellSize / 2 + 3,
-                    headerY - 20 + 3,
-                    cellSize,
-                    40,
-                    {
-                        tl: 16,
-                        tr: 16,
-                        bl: 0,
-                        br: 0,
-                    }
-                );
-
-                graphics.fillStyle(bingoColors[index], 1);
-                graphics.fillRoundedRect(
-                    x - cellSize / 2,
-                    headerY - 20,
-                    cellSize,
-                    40,
-                    {
-                        tl: 16,
-                        tr: 16,
-                        bl: 0,
-                        br: 0,
-                    }
-                );
-
-                const headerText = scene.add
-                    .text(x, headerY, letter, {
-                        font: "24px Arial Black",
-                        color: "#fff",
-                        stroke: "#000",
-                        strokeThickness: 2,
-                    })
-                    .setOrigin(0.5);
-
-                cardGroup.add(graphics);
-                cardGroup.add(headerText);
-            });
-
-            this.bingoCard = Array.from({ length: 25 }, (_, index) => {
-                let cell =
-                    index === this.freeIndex
-                        ? "FREE"
-                        : uniqueNumbers[index]?.toString();
-
-                const row = Math.floor(index / 5);
-                const col = index % 5;
-                const x = cardStartX + col * (cellSize + padding);
-                const y = cardStartY + row * (cellSize + padding);
-
-                const graphics = scene.add.graphics();
-
-                graphics.fillStyle(0x000000, 0.15);
-                graphics.fillRoundedRect(
-                    x - cellSize / 2 + 3,
-                    y - cellSize / 2 + 3,
-                    cellSize,
-                    cellSize,
-                    16
-                );
-
-                if (index === this.freeIndex) {
-                    graphics.fillStyle(0xff6b6b, 1);
-                } else {
-                    graphics.fillStyle(0xffffff, 1);
-                }
-                graphics.fillRoundedRect(
-                    x - cellSize / 2,
-                    y - cellSize / 2,
-                    cellSize,
-                    cellSize,
-                    8
-                );
-
-                graphics.lineStyle(2, 0xcccccc, 1);
-                graphics.strokeRoundedRect(
-                    x - cellSize / 2,
-                    y - cellSize / 2,
-                    cellSize,
-                    cellSize,
-                    8
-                );
-
-                const text = scene.add
-                    .text(x, y, cell, {
-                        font: "20px Arial Bold",
-                        color: "#333333",
-                    })
-                    .setOrigin(0.5);
-
-                const interactiveRect = scene.add
-                    .rectangle(x, y, cellSize, cellSize, 0xffffff, 0)
-                    .setInteractive();
-
-                let star: Phaser.GameObjects.Image | undefined = undefined;
-                if (index === this.freeIndex) {
-                    star = scene.add
-                        .image(x, y, "star")
-                        .setScale(0.4)
-                        .setTint(0xffffff);
-                    text.setVisible(false);
-                    cardGroup.add(star);
-                }
-
-                cardGroup.add(graphics);
-                cardGroup.add(text);
-                cardGroup.add(interactiveRect);
-
-                return {
-                    number:
-                        index === this.freeIndex
-                            ? "FREE"
-                            : uniqueNumbers[index],
-                    graphics: graphics,
-                    text: text,
-                    interactiveRect: interactiveRect,
-                    star: star,
-                    marked: index === this.freeIndex,
-                    x: x,
-                    y: y,
-                };
-            });
-
-            this.nearBingoText = scene.add
-                .text(85, 40, "", {
-                    font: "24px Arial",
-                    color: "#FFD700",
-                    stroke: "#000",
-                    strokeThickness: 0,
-                })
-                .setOrigin(0.5);
-
-            this.drawButton = scene.add
-                .text(centerX, centerY + 250, "Draw Number", {
-                    font: "32px Arial",
-                    color: "#fff",
-                    backgroundColor: "#007BFF",
-                    padding: { x: 20, y: 10 },
-                })
-                .setOrigin(0.5)
-                .setInteractive();
-            this.replayButton = scene.add
-                .text(centerX, centerY + 250, "Replay", {
-                    font: "32px Arial",
-                    color: "#fff",
-                    backgroundColor: "#28a745",
-                    padding: { x: 20, y: 10 },
-                })
-                .setOrigin(0.5)
-                .setInteractive()
-                .setVisible(false);
-            this.drawButton.on("pointerdown", () => {
-                this.interval = setInterval(() => {
-                    this.drawRandomNumber(scene);
-                }, 3000);
-                this.drawButton.setVisible(false);
-            });
-
-            this.replayButton.on("pointerdown", () => {
-                this.scene.restart();
-            });
-
-            this.bingoText = scene.add
-                .text(centerX, centerY - 50, "BINGO!", {
-                    font: "64px Arial Black",
-                    color: "#FFD700",
-                    stroke: "#fffda0",
-                    strokeThickness: 1,
-                })
-                .setOrigin(0.5);
-            this.bingoText.setVisible(false);
-
-            this.confetti = scene.add
-                .image(centerX, centerY, "confetti")
-                .setScale(0.5);
-            this.confetti.setVisible(false);
-            this.confetti.setAlpha(0);
-        }
+        EventBus.on("info", (data: number[]) => {
+            this.numbers = data;
+            this.needReload = true;
+        });
+        EventBus.on(
+            "numberCalled",
+            (data: {
+                number: number;
+                totalCalled: number;
+                remaining: number;
+            }) => {
+                this.drawRandomNumber.call(this, this, data.number);
+            }
+        );
         EventBus.emit("current-scene-ready", this);
+        EventBus.emit("gameSceneReady");
     }
+
 }
