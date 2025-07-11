@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, ReactNode, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
-// Types
 interface SocketContextType {
     socket: Socket | null;
     emit: (event: string, data?: any) => void;
@@ -17,11 +16,9 @@ interface SocketProviderProps {
     url?: string;
 }
 
-// Context
 const SocketContext = createContext<SocketContextType | null>(null);
 
-// Provider Component
-export function SocketProvider({ children, url = "http://localhost:3000" }: SocketProviderProps) {
+export function SocketProvider({ children, url }: SocketProviderProps) {
     const socketRef = useRef<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 

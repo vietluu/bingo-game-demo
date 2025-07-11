@@ -21,9 +21,7 @@ export class MainMenu extends Scene
             volume: 1,
         });
     }
-    update(time: number, delta: number): void {
-        // Remove this logic - it's causing issues
-    }
+
     create ()
     {   
         const { width, height } = this.sys.game.config;         
@@ -32,7 +30,6 @@ export class MainMenu extends Scene
         this.logo = this.add.sprite(+width/2, +height/2 - 84, 'logo');
         this.logo.setDisplaySize(228, 75);
         
-        // Reset countdown properties when scene is created
         this.countdownText = null;
         this.countdownTimer = null;
         this.countdownSeconds = 0;
@@ -76,9 +73,7 @@ export class MainMenu extends Scene
         EventBus.emit('current-scene-ready', this);
     }
 
-    /**
-     * Start countdown timer with specified duration in seconds
-     */
+   
     startCountdown() {
         console.log("🕒 Starting countdown with:", this.countdownSeconds, "seconds");
         
@@ -87,14 +82,12 @@ export class MainMenu extends Scene
             return;
         }
         
-        // Stop and cleanup existing timer
         if (this.countdownTimer) {
             console.log("🛑 Stopping existing countdown timer");
             this.countdownTimer.destroy();
             this.countdownTimer = null;
         }
 
-        // Always create new countdown text (don't reuse old one)
         if (this.countdownText) {
             this.countdownText.destroy();
             this.countdownText = null;
@@ -102,7 +95,6 @@ export class MainMenu extends Scene
         
         const { width, height } = this.sys.game.config;
         
-        // Create waiting text
         const waiting = this.add.text(
             +width / 2,
             +height / 2 + 150,
@@ -118,7 +110,6 @@ export class MainMenu extends Scene
         .setDepth(100)
         .setOrigin(0.5);
 
-        // Create new countdown text
         this.countdownText = this.add.text(
             +width/2, 
             +height/2 + 100, 
@@ -132,17 +123,13 @@ export class MainMenu extends Scene
             }
         ).setDepth(100).setOrigin(0.5);
         
-        console.log("✨ Created new countdown text element");
-
-        // Create timer that runs every second
         this.countdownTimer = this.time.addEvent({
-            delay: 1000, // 1 second intervals
+            delay: 1000, 
             callback: this.updateCountdown,
             callbackScope: this,
-            repeat: this.countdownSeconds - 1 // Repeat for remaining seconds
+            repeat: this.countdownSeconds - 1 
         });
         
-        console.log("⏰ Countdown timer started successfully");
     }
     
     updateCountdown() {
@@ -151,10 +138,8 @@ export class MainMenu extends Scene
         if (this.countdownText) {
             this.countdownText.setText(this.formatTime(this.countdownSeconds));
             
-            // Color changes based on remaining time
             if (this.countdownSeconds <= 10) {
-                this.countdownText.setColor('#ff0000'); // Red for last 10 seconds
-                // Add pulsing effect for urgency
+                this.countdownText.setColor('#ff0000');
                 this.tweens.add({
                     targets: this.countdownText,
                     scaleX: 1.2,
@@ -165,7 +150,7 @@ export class MainMenu extends Scene
                     repeat: 0
                 });
             } else if (this.countdownSeconds <= 30) {
-                this.countdownText.setColor('#ff8800'); // Orange for last 30 seconds
+                this.countdownText.setColor('#ff8800'); 
             }
         }
         
@@ -180,7 +165,6 @@ export class MainMenu extends Scene
             this.countdownText.setText("00:00");
             this.countdownText.setColor('#ff0000');
             
-            // Final animation
             this.tweens.add({
                 targets: this.countdownText,
                 scaleX: 1.5,
@@ -196,16 +180,13 @@ export class MainMenu extends Scene
             });
         }
         
-        // Clean up timer
         if (this.countdownTimer) {
             this.countdownTimer.destroy();
             this.countdownTimer = null;
         }
         
-        // Reset countdown seconds
         this.countdownSeconds = 0;
         
-        // Emit event that countdown finished
         EventBus.emit('countdown-finished');
     }
     
@@ -221,7 +202,6 @@ export class MainMenu extends Scene
     }
     
     stopCountdown() {
-        console.log("🛑 Stopping countdown");
         
         if (this.countdownTimer) {
             this.countdownTimer.destroy();
@@ -234,7 +214,6 @@ export class MainMenu extends Scene
         }
         
         this.countdownSeconds = 0;
-        console.log("✅ Countdown stopped and cleaned up");
     }
 
     changeScene ()
@@ -246,21 +225,17 @@ export class MainMenu extends Scene
             this.logoTween.stop();
             this.logoTween = null;
         }
-        console.log("Changing scene to Game");
         this.scene.start('Game');
     }
 
     shutdown() {
-        console.log("🔄 MainMenu scene shutting down - cleaning up countdown");
         this.stopCountdown();
         
-        // Clean up EventBus listeners to prevent memory leaks
         EventBus.off("StartGameScene");
         EventBus.off("waitingCountdown");
     }
 
     destroy() {
-        console.log("💥 MainMenu scene destroyed - final cleanup");
         this.stopCountdown();
     }
 
