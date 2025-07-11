@@ -18,7 +18,7 @@ interface SocketProviderProps {
 
 const SocketContext = createContext<SocketContextType | null>(null);
 
-export function SocketProvider({ children, url }: SocketProviderProps) {
+export function SocketProvider({ children, url= process.env.VITE_SOCKET_URL }: SocketProviderProps) {
     const socketRef = useRef<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
