@@ -5,7 +5,7 @@ import { SocketProvider } from './services/socket';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-        <SocketProvider url="https://nf62sp-3000.csb.app/">
+        <SocketProvider url={import.meta.env.VITE_SOCKET_URL}>
             <App />
         </SocketProvider>
     </React.StrictMode>

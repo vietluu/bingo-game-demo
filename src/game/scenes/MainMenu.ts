@@ -31,6 +31,11 @@ export class MainMenu extends Scene
 
         this.logo = this.add.sprite(+width/2, +height/2 - 84, 'logo');
         this.logo.setDisplaySize(228, 75);
+        
+        // Reset countdown properties when scene is created
+        this.countdownText = null;
+        this.countdownTimer = null;
+        this.countdownSeconds = 0;
 
        let text =  this.add.text(+width/2, +height/2 , 'Start game', {
             fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
@@ -52,11 +57,9 @@ export class MainMenu extends Scene
       
         text.setInteractive();
 
-        text.once('pointerdown', () => {
+        text.on('pointerdown', () => {
             console.log("Start Game button clicked in MainMenu scene");
-            EventBus.emit('start-game');
-            // Option 1: Start the game scene immediately for better UX
-            // this.changeScene();             
+            EventBus.emit('start-game');            
             this.startCountdown();
             
         });
@@ -77,50 +80,60 @@ export class MainMenu extends Scene
      * Start countdown timer with specified duration in seconds
      */
     startCountdown() {
+        console.log("🕒 Starting countdown with:", this.countdownSeconds, "seconds");
         
         if (!this.countdownSeconds || this.countdownSeconds <= 0) {
+            console.log("⚠️ Cannot start countdown - no time remaining");
             return;
         }
         
+        // Stop and cleanup existing timer
         if (this.countdownTimer) {
+            console.log("🛑 Stopping existing countdown timer");
             this.countdownTimer.destroy();
             this.countdownTimer = null;
         }
 
-        if (!this.countdownText) {
-            const { width, height } = this.sys.game.config;
-            const waiting = this.add
-                .text(
-                    +width / 2,
-                    +height / 2 + 150,
-                    "Waiting for more players...",
-                    {
-                        fontFamily: "Arial Black",
-                        fontSize: 24,
-                        color: "#ffffff",
-                        align: "center",
-                        padding: { x: 16, y: 8 },
-                    }
-                )
-                .setDepth(100)
-                .setOrigin(0.5)
-                .setVisible(false);
-            waiting.setVisible(true);
+        // Always create new countdown text (don't reuse old one)
+        if (this.countdownText) {
+            this.countdownText.destroy();
+            this.countdownText = null;
+        }
+        
+        const { width, height } = this.sys.game.config;
+        
+        // Create waiting text
+        const waiting = this.add.text(
+            +width / 2,
+            +height / 2 + 150,
+            "Waiting for more players...",
+            {
+                fontFamily: "Arial Black",
+                fontSize: 24,
+                color: "#ffffff",
+                align: "center",
+                padding: { x: 16, y: 8 },
+            }
+        )
+        .setDepth(100)
+        .setOrigin(0.5);
 
-            this.countdownText = this.add.text(+width/2, +height/2 + 100, this.formatTime(this.countdownSeconds), {
+        // Create new countdown text
+        this.countdownText = this.add.text(
+            +width/2, 
+            +height/2 + 100, 
+            this.formatTime(this.countdownSeconds), 
+            {
                 fontFamily: 'Arial Black', 
                 fontSize: 32, 
                 color: '#ff6b6b',
                 align: 'center',
                 padding: { x: 16, y: 8 },
-            }).setDepth(100).setOrigin(0.5);
-        }
+            }
+        ).setDepth(100).setOrigin(0.5);
         
-        // Update display
-        this.countdownText.setText(this.formatTime(this.countdownSeconds));
-        this.countdownText.setVisible(true);
-        this.countdownText.setColor('#ff6b6b'); // Reset color
-        
+        console.log("✨ Created new countdown text element");
+
         // Create timer that runs every second
         this.countdownTimer = this.time.addEvent({
             delay: 1000, // 1 second intervals
@@ -129,6 +142,7 @@ export class MainMenu extends Scene
             repeat: this.countdownSeconds - 1 // Repeat for remaining seconds
         });
         
+        console.log("⏰ Countdown timer started successfully");
     }
     
     updateCountdown() {
@@ -207,16 +221,20 @@ export class MainMenu extends Scene
     }
     
     stopCountdown() {
+        console.log("🛑 Stopping countdown");
+        
         if (this.countdownTimer) {
             this.countdownTimer.destroy();
             this.countdownTimer = null;
         }
         
         if (this.countdownText) {
-            this.countdownText.setVisible(false);
+            this.countdownText.destroy();
+            this.countdownText = null;
         }
         
         this.countdownSeconds = 0;
+        console.log("✅ Countdown stopped and cleaned up");
     }
 
     changeScene ()
@@ -230,6 +248,20 @@ export class MainMenu extends Scene
         }
         console.log("Changing scene to Game");
         this.scene.start('Game');
+    }
+
+    shutdown() {
+        console.log("🔄 MainMenu scene shutting down - cleaning up countdown");
+        this.stopCountdown();
+        
+        // Clean up EventBus listeners to prevent memory leaks
+        EventBus.off("StartGameScene");
+        EventBus.off("waitingCountdown");
+    }
+
+    destroy() {
+        console.log("💥 MainMenu scene destroyed - final cleanup");
+        this.stopCountdown();
     }
 
     moveLogo (reactCallback: (coords: { x: number; y: number }) => void)

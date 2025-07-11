@@ -8,6 +8,7 @@ function App() {
     const { emit, on, off, removeAllListeners, once } = useSocket();
     const phaserRef = useRef();
     const [cardNumbers, setCardNumbers] = useState([]);
+    const [isVisible, setIsVisible] = useState(true);
 
     const currentScene = (scene) => {
         setCanMoveSprite(scene.scene.key !== "MainMenu");
@@ -28,7 +29,6 @@ function App() {
                     ? data.bingoCard.flat()
                     : data.bingoCard;
                 setCardNumbers(cardNumbers);
-              
             }
         };
 
@@ -47,12 +47,12 @@ function App() {
         on("numberCalled", (data) => {
             EventBus.emit("numberCalled", data);
         });
-          on("waitingCountdown", (data) => {
-              if(data?.remainingSeconds !== undefined) {
-                  EventBus.emit("waitingCountdown", data.remainingSeconds);
-                  off("waitingCountdown");
-              }
-          });
+        on("waitingCountdown", (data) => {
+            if (data?.remainingSeconds !== undefined) {
+                EventBus.emit("waitingCountdown", data.remainingSeconds);
+                off("waitingCountdown");
+            }
+        });
         on("joinError", (data) => {
             if (data?.roomStatus === "playing") {
                 alert(
@@ -60,13 +60,22 @@ function App() {
                 );
             }
         });
+
+        on("reSyncNumbersResult", (data) => {
+            if (data?.bingoCard) {
+                EventBus.emit("reSyncNumbersResult", data.calledNumbers);
+            }
+        });
+
         EventBus.on("bingo", () => {
             off("numberCalled");
+            off("reSyncNumbersResult")
+            EventBus.off("reSyncNumbersResult")
         });
         EventBus.on("QuitGame", () => {
             emit("leaveGame");
         });
-        
+
         return () => {
             off("playerJoined", handlePlayerJoined);
             off("joinError");
@@ -80,6 +89,45 @@ function App() {
             removeAllListeners();
         };
     }, [on, off, cardNumbers]);
+    on("reSyncNumbersResult", (data) => {
+        EventBus.emit("reSyncNumbersResult", data.calledNumbers);
+        setIsVisible(true);
+    });
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === "hidden") {
+            setIsVisible(false);
+        } else {
+            if (!isVisible) {
+                on("waitingCountdown", (data) => {
+                    if (data?.remainingSeconds !== undefined) {
+                        EventBus.emit(
+                            "waitingCountdown",
+                            data.remainingSeconds
+                        );
+                        off("waitingCountdown");
+                    }
+                });
+                emit("reSyncNumbers");
+            }
+        }
+    };
+    useEffect(() => {
+        if (document) {
+            document.addEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            );
+        }
+        return () => {
+            if (document) {
+                document.removeEventListener(
+                    "visibilitychange",
+                    handleVisibilityChange
+                );
+            }
+        };
+    }, [isVisible, emit]);
+
     return (
         <div id="app">
             <PhaserGame ref={phaserRef} currentActiveScene={currentScene} />

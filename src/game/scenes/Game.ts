@@ -451,7 +451,7 @@ export class Game extends Scene {
 
             const graphics = this.add.graphics();
 
-            graphics.fillStyle(0x000000, 0.15);
+            graphics.fillStyle(0x000000, 0.05);
             graphics.fillRoundedRect(
                 x - cellSize / 2 + 3,
                 y - cellSize / 2 + 3,
@@ -484,8 +484,8 @@ export class Game extends Scene {
 
             const text = this.add
                 .text(x, y, cell, {
-                    font: "20px Arial Bold",
-                    color: "#333333",
+                    font: "30px Arial Bold",
+                    color: "#000000",
                 })
                 .setOrigin(0.5);
 
@@ -502,7 +502,14 @@ export class Game extends Scene {
                 text.setVisible(false);
                 cardGroup.add(star);
             }
-
+            this.tweens.add({
+               targets: [text, graphics, interactiveRect],
+                alpha: { from: 0, to: 1, duration:500 },
+                ease: 'Power2',
+                duration: 500,
+                delay: Math.floor(index / 5) * 100,
+                repeat: 0,
+            });
             cardGroup.add(graphics);
             cardGroup.add(text);
             cardGroup.add(interactiveRect);
@@ -622,6 +629,17 @@ export class Game extends Scene {
                 this.drawRandomNumber.call(this, this, data.number);
             }
         );
+        EventBus.on("reSyncNumbersResult", (data: number[]) => {
+            if (data) {
+                data.forEach((number) => {
+                        console.log("Re-syncing numbers", number, this.drawnNumbers.has(number));
+                    if (!this.drawnNumbers.has(number)) {
+                        console.log("Drawing number:", number);
+                        this.drawRandomNumber.call(this, this, number);
+                    }
+                });
+            }
+        });
         EventBus.emit("current-scene-ready", this);
         EventBus.emit("gameSceneReady");
     }

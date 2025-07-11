@@ -88,7 +88,6 @@ export function SocketProvider({ children, url = "http://localhost:3000" }: Sock
     return React.createElement(SocketContext.Provider, { value }, children);
 }
 
-// Hook để sử dụng socket context
 export function useSocket() {
     const context = useContext(SocketContext);
     if (!context) {

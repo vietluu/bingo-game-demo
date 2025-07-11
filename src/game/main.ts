@@ -9,18 +9,29 @@ const config = {
     width: window.navigator.userAgent.includes('Mobile') ? window.innerWidth : 480, 
     height: window.innerHeight,
     Scale: {
-        mode: Phaser.Scale.RESIZE, // Tự động resize
+        mode: Phaser.Scale.RESIZE, 
         parent: 'game-container',
         width: window.navigator.userAgent.includes('Mobile') ? window.innerWidth : 480,
         height: window.innerHeight,
         autoCenter: Phaser.Scale.CENTER_BOTH
-
     },
     audio: {
         disableWebAudio: false,
-  },
+    },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            checkCollision: {
+                up: true,
+                down: true,
+                left: true,
+                right: true
+            }
+        }
+    },
     parent: 'game-container',
     backgroundColor: '#028af8',
+    pauseOnBlur: false,
     scene: [
         Boot,
         Preloader,
