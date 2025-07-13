@@ -1,6 +1,5 @@
 import { EventBus } from "../EventBus";
 import { Scene, Tweens } from "phaser";
-
 export class Game extends Scene {
     bingoCard: Array<{
         number: number | "FREE";
@@ -32,8 +31,10 @@ export class Game extends Scene {
     activeSound: Phaser.Sound.BaseSound | undefined;
     numbers: number[] = [];
     needReload: boolean = false;
+    rexUI: any;
     constructor() {
         super("Game");
+     
     }
     
     preload() {
@@ -51,7 +52,47 @@ export class Game extends Scene {
         });
         this.sound.pauseAll();
         this.gameSound.play();
+        this.rexUI = this.load.scenePlugin({
+            key: "rexuiplugin",
+            url: "https://raw.githubusercontent.com/rexrainbow/phaser3-rex-notes/master/dist/rexuiplugin.min.js",
+            sceneKey: "rexUI"
+        })
+    
     }
+ createGrid = function (scene:any, orientation:any) {
+    var sizer = scene.rexUI.add.sizer({
+        orientation: 'x',
+        space: {
+            left: 3,
+            right: 3,
+            top: 3,
+            bottom: 3,
+            item: 8,
+        },
+    })
+        .addBackground(scene.rexUI.add.roundRectangle(0, 0, 10, 10, 0, 0x000000, 0))
+
+    for (var i = 0; i < 6; i++) {
+        sizer.add(scene.rexUI.add.label({
+            width: 60, height: 60,
+
+            background: scene.rexUI.add.roundRectangle(0, 0, 0, 0, 14, 0x000000, 0.05),
+            text: scene.add.text(0, 0, `${i + 1}`, {
+                fontSize: 18
+            }),
+            
+            align: 'center',
+            space: {
+                left: 10,
+                right: 10,
+                top: 10,
+                bottom: 10,
+            }
+        }));
+    }
+
+    return sizer;
+}
     generateUniqueNumbers(count: number, min: number, max: number): number[] {
         const numbers: number[] = [];
         const used = new Set<number>();
@@ -640,6 +681,64 @@ export class Game extends Scene {
                 });
             }
         });
+
+        var scrollMode = 1; // 0, 1
+        var scrollablePanel = this.rexUI.add.scrollablePanel({
+            x: centerX,
+            y: centerY + 400,
+            width: (scrollMode === 0) ? +width - 40 : +width - 40,
+            height: (scrollMode === 0) ? 200 : 200,
+
+            scrollMode: scrollMode,
+            panel: {
+                child: this.createGrid(this, scrollMode),
+                mask: {
+                    mask: true,
+                    padding: 1,
+                }
+            },
+            mouseWheelScroller: {
+                focus: false,
+                speed: 0.1
+            },
+
+            space: {
+                left: 10,
+                right: 10,
+                top: 10,
+                bottom: 10,
+
+                panel: 10,
+            }
+        })
+            .layout()
+
+        var print = this.add.text(0, 0, '');
+        var selectedChild: any = null; 
+
+        scrollablePanel
+            .setChildrenInteractive()
+            .on('child.click', function (child:any, pointer:any, event:any) {
+                print.text += `Click ${child.text}\n`;
+                if (selectedChild && selectedChild !== child) {
+                    if (selectedChild.getElement && selectedChild.getElement('background')) {
+                        selectedChild.getElement('background').setFillStyle(0x000000, 0.05);
+                    } else if (selectedChild.background) {
+                        selectedChild.background.setFillStyle(0x000000, 0.05); 
+                    }
+                }
+                
+                if (child.getElement && child.getElement('background')) {
+                    child.getElement('background').setFillStyle(0xff6b6b); 
+                } else if (child.background) {
+                    child.background.setFillStyle(0xff6b6b);
+                }
+                
+                selectedChild = child;
+            })
+            .on('child.pressstart', function (child:any, pointer:any, event:any) {
+               // print.text += `Press ${child.text}\n`;
+            })
         EventBus.emit("current-scene-ready", this);
         EventBus.emit("gameSceneReady");
     }
